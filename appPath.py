@@ -1,9 +1,12 @@
+from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify
 import requests
 from lxml import etree
-
+from lxml.html.clean import Cleaner
+from flask_cors import CORS
+cleaner = Cleaner()
 app = Flask(__name__)
-
+CORS(app, supports_credentials=True)
 # 定义默认的 User-Agent
 ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.10240"
 
@@ -52,16 +55,21 @@ def extract_data(dom, title_xpath, profile_xpath, step_xpath, step_title_xpath, 
             # 提取内容和图片
             img_url = img_elements[0].get('data-src') or img_elements[0].get('src') if img_elements else "未找到图片"
             content = etree.tostring(content_elements[0], encoding='unicode', method='html').strip() if content_elements else "未找到内容"
+            content = cleaner.clean_html(content)
+            # img_url 有内容才append 并且不是 "未找到图片"
+            if img_url and img_url != "未找到图片":
+                step_items.append({
+                    "img": img_url,
+                    "content": content
+                })
             
-            step_items.append({
-                "content": content,
-                "img": img_url
-            })
+            
+        if step_title and step_title != "未找到步骤标题":
 
-        steps.append({
-            "title": step_title,
-            "step_items": step_items
-        })
+            steps.append({
+                "title": step_title,
+                "step_items": step_items
+            })
 
     return {
         "title": main_title,

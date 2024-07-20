@@ -32,6 +32,7 @@ def get_article(url, title_node, title_class, content_node, content_class):
             # content = content.get_text(strip=True)
             
             content = content.prettify()
+            
             content = html.unescape(content)  # 去除转义符
         else:
             return {'error': '内容节点未找到或为空'}
