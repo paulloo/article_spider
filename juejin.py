@@ -57,6 +57,9 @@ def extract_data(dom, rules, filters):
     data['profile'] = apply_filters(profile, filters)
 
     # 提取步骤
+    if rules['steps'] is None:
+        return data
+    
     steps = []
     step_xpath = css_to_xpath(rules['steps']['step_xpath'])
     if not step_xpath:
