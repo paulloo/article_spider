@@ -1,300 +1,224 @@
-
 import os
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import requests
-from lxml import etree, html
-from lxml.html.clean import Cleaner
-import cssselect
 import json
-import time
+from datetime import datetime
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from lxml import etree, html
+from lxml_html_clean import Cleaner
+import requests
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+CORS(app)
 
-# 定义默认的 User-Agent
-ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.10240"
+# 配置
+DATA_DIR = 'data'
+CONFIG_FILE = 'config.json'
 
-def fetch_html(url, headers):
-    """发送 HTTP 请求并返回 HTML 内容"""
+def ensure_data_dir():
+    """确保数据目录存在"""
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+        print(f"Created data directory: {DATA_DIR}")
+
+def load_config():
+    """加载配置文件"""
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        return response.text, None
-    except requests.RequestException as e:
-        return None, f"请求失败：{e}"
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        return {}
 
-def parse_html(content):
-    """解析 HTML 内容并返回 DOM 树"""
-    return etree.HTML(content)
+def save_config(config):
+    """保存配置文件"""
+    try:
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving config: {e}")
 
-def css_to_xpath(css_selector):
-    """将 CSS 选择器转换为 XPath"""
-    return cssselect.HTMLTranslator().css_to_xpath(css_selector)
+class WikiHowScraper:
+    def __init__(self):
+        self.cleaner = Cleaner(
+            style=True,
+            links=True,
+            add_nofollow=True,
+            page_structure=False,
+            safe_attrs_only=False
+        )
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
 
-def apply_filters(content, filters):
-    """应用过滤器剔除不需要的标签或符号"""
-    root = html.fromstring(content)
-    for f in filters:
-        etree.strip_elements(root, f, with_tail=False)
-    return etree.tostring(root, encoding='unicode', method='html')
+    def fetch_article(self, url):
+        """获取文章内容"""
+        try:
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as e:
+            print(f"Error fetching article: {e}")
+            return None
 
-def extract_data(dom, rules, filters):
-    """使用自定义规则提取数据并应用过滤器"""
-    cleaner = Cleaner()
-    data = {}
+    def parse_article(self, html_content, config):
+        """解析文章内容"""
+        if not html_content:
+            return None
 
-    # 提取主标题
-    title_xpath = css_to_xpath(rules['title'])
-    if not title_xpath:
-        return {'error': '无效的 CSS 选择器: title'}
-    main_title = extract_element(dom, title_xpath, filters)
-    data['title'] = main_title if main_title else "未找到标题"
+        try:
+            doc = html.fromstring(html_content)
+            
+            # 清理HTML
+            doc = self.cleaner.clean_html(doc)
 
-    # 提取简介
-    profile_xpath = css_to_xpath(rules['profile'])
-    if not profile_xpath:
-        return {'error': '无效的 CSS 选择器: profile'}
-    profile_elements = dom.xpath(profile_xpath)
-    profile = " ".join([etree.tostring(p, encoding='unicode', method='html').strip() for p in profile_elements])
-    data['profile'] = apply_filters(profile, filters)
+            # 提取内容
+            data = {
+                'title': self._get_text(doc, config['title_xpath']),
+                'profile': self._get_text(doc, config['profile_xpath']),
+                'steps': self._get_steps(doc, config),
+                'timestamp': datetime.now().isoformat()
+            }
+            return data
+        except Exception as e:
+            print(f"Error parsing article: {e}")
+            return None
 
-    # 提取步骤
-    steps = []
-    step_xpath = css_to_xpath(rules['steps']['step_xpath'])
-    if not step_xpath:
-        return {'error': '无效的 CSS 选择器: steps.step_xpath'}
-    step_elements = dom.xpath(step_xpath)
-    for step in step_elements:
-        step_title_xpath = css_to_xpath(rules['steps']['step_title_xpath'])
-        if not step_title_xpath:
-            return {'error': '无效的 CSS 选择器: steps.step_title_xpath'}
-        step_title = extract_element(step, step_title_xpath, filters)
-        if not step_title:
-            continue
+    def _get_text(self, doc, xpath):
+        """获取文本内容"""
+        try:
+            elements = doc.xpath(xpath)
+            return elements[0].text_content().strip() if elements else ''
+        except Exception:
+            return ''
 
-        step_items = []
-        step_item_xpath = css_to_xpath(rules['steps']['step_item_xpath'])
-        if not step_item_xpath:
-            return {'error': '无效的 CSS 选择器: steps.step_item_xpath'}
-        step_item_elements = step.xpath(step_item_xpath)
-        for item in step_item_elements:
-            step_item = extract_step_item(item, rules['steps'], cleaner, filters)
-            if step_item:
-                step_items.append(step_item)
+    def _get_steps(self, doc, config):
+        """获取步骤内容"""
+        steps = []
+        try:
+            step_elements = doc.xpath(config['step_xpath'])
+            for step in step_elements:
+                step_data = {
+                    'title': self._get_text(step, config['step_title_xpath']),
+                    'items': []
+                }
+                
+                items = step.xpath(config['step_item_xpath'])
+                for item in items:
+                    item_data = {
+                        'content': self._get_text(item, config['step_item_content_xpath']),
+                        'image': self._get_image(item, config['step_item_img_xpath'])
+                    }
+                    step_data['items'].append(item_data)
+                
+                steps.append(step_data)
+        except Exception as e:
+            print(f"Error getting steps: {e}")
+        return steps
 
-        steps.append({
-            "title": step_title,
-            "step_items": step_items
-        })
+    def _get_image(self, element, xpath):
+        """获取图片URL"""
+        try:
+            img = element.xpath(xpath)
+            return img[0].get('src') if img else ''
+        except Exception:
+            return ''
 
-    data['steps'] = steps
-    return data
+# Flask路由
+@app.route('/scrape', methods=['POST'])
+def scrape_article():
+    """抓取文章接口"""
+    try:
+        data = request.get_json()
+        url = data.get('url')
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
 
-def extract_element(dom, xpath, filters):
-    """提取单个元素并应用过滤器"""
-    elements = dom.xpath(xpath)
-    if elements:
-        content = etree.tostring(elements[0], encoding='unicode', method='html').strip()
-        return apply_filters(content, filters)
-    return None
-
-def extract_step_item(item, step_rules, cleaner, filters):
-    """提取步骤项的内容和图片"""
-    img_xpath = css_to_xpath(step_rules['step_item_img_xpath'])
-    content_xpath = css_to_xpath(step_rules['step_item_content_xpath'])
-    children_xpath = css_to_xpath(step_rules['step_item_content_children'])
-
-    if not img_xpath:
-        return {'error': '无效的 CSS 选择器: steps.step_item_img_xpath'}
-    if not content_xpath:
-        return {'error': '无效的 CSS 选择器: steps.step_item_content_xpath'}
-    if not children_xpath:
-        return {'error': '无效的 CSS 选择器: steps.step_item_content_children'}
-    
-    img_elements = item.xpath(img_xpath)
-    content_elements = item.xpath(content_xpath)
-    
-    if not content_elements:
-        return None
-
-    img_url = (img_elements[0].get('data-src') or img_elements[0].get('src')) if img_elements else None
-    
-    content = []
-    # 提取子内容
-    children_list = []
-    for item_content in content_elements:
-        li_elements = item_content.xpath(children_xpath)
-        for li_element in li_elements:
-            li_content = etree.tostring(li_element, encoding='unicode', method='html').strip()
-            li_content = cleaner.clean_html(li_content)
-            li_content = apply_filters(li_content, filters)
-            children_list.append(li_content)
+        config = load_config()
+        scraper = WikiHowScraper()
         
-        # 如果没有找到子内容，添加默认信息
-        if not li_elements:
-            continue
+        html_content = scraper.fetch_article(url)
+        if not html_content:
+            return jsonify({'error': 'Failed to fetch article'}), 500
 
-    for content_element in content_elements:
-        li_elements = content_element.xpath(children_xpath)
-        for li_element in li_elements:
-            # 移除内容中的 li 元素
-            li_element.getparent().remove(li_element)
-    
-    content = " ".join([etree.tostring(content_element, encoding='unicode', method='html').strip() for content_element in content_elements])
-    content = cleaner.clean_html(content)
-    content = apply_filters(content, filters)
+        article_data = scraper.parse_article(html_content, config)
+        if not article_data:
+            return jsonify({'error': 'Failed to parse article'}), 500
 
-
-    return {
-        "img": img_url,
-        "content": content,
-        "children": children_list
-    }
-
-
-
-@app.route('/fetch_content', methods=['POST'])
-def fetch_content():
-    # 获取 JSON 数据
-    data = request.get_json()
-
-    # 获取 URL、规则和过滤器
-    url = data.get('url')
-    rules = data.get('rules', {})
-    filters = data.get('filters', [])
-
-    # 验证参数
-    required_keys = ['title', 'profile', 'steps']
-    steps_required_keys = ['step_xpath', 'step_title_xpath', 'step_item_xpath', 'step_item_img_xpath', 'step_item_content_xpath']
-    
-    if not url or any(key not in rules for key in required_keys) or any(key not in rules['steps'] for key in steps_required_keys):
-        return jsonify({'error': '缺少必要的参数'}), 400
-
-    headers = {'User-Agent': ua}
-
-    # 获取 HTML 内容
-    html_content, error = fetch_html(url, headers)
-    if error:
-        return jsonify({'error': error}), 500
-
-    if html_content:
-        # 解析 HTML 内容
-        dom = parse_html(html_content)
+        # 保存数据
+        ensure_data_dir()
+        filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        filepath = os.path.join(DATA_DIR, filename)
         
-        # 提取数据并应用过滤器
-        extracted_data = extract_data(dom, rules, filters)
-        
-        # 返回结果
-        return jsonify(extracted_data), 200
-    else:
-        return jsonify({'error': '获取 HTML 内容失败。'}), 500
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(article_data, f, indent=4, ensure_ascii=False)
 
+        return jsonify({'success': True, 'filename': filename})
 
-# 写一个api接口用来保存数据为本地json文件， 比如不保存到 /data/xxxx.json
-@app.route('/save_data', methods=['POST'])
-def save_data():
-    data = request.get_json()
-
-    # filename 取 data 里的title字段
-    # 当前时间戳模 作为 默认的文件名
-    timestamp = int(time.time())
-    filename = data.get('title', f'{timestamp}')
-    save_dir = 'data'
-
-    # Create the save directory if it doesn't exist
-    import os
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    # Save the data to a file
-    file_path = os.path.join(save_dir, f'{filename}.json')
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False)
-
-    return jsonify({'message': f'Data saved to {file_path}'})
-
-
-
-@app.route('/delete_data', methods=['POST'])
-def delete_data():
-    data = request.get_json()
-    filename = data.get('filename')
-    if filename is None:
-        return jsonify({'error': 'filename parameter is required'}), 400
-    data_dir = 'data'
-    file_path = os.path.join(data_dir, filename)
-    if not os.path.exists(file_path):
-        return jsonify({'error': 'file not found'}), 404
-    os.remove(file_path)
-
-    return jsonify({'message': 'Data deleted'})
-
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/get_data_list', methods=['GET'])
 def get_data_list():
-    data_dir = 'data'
-    files = [f for f in os.listdir(data_dir) if f.endswith('.json')]
-    return jsonify({'files': files})
+    """获取数据列表接口"""
+    try:
+        ensure_data_dir()
+        files = [f for f in os.listdir(DATA_DIR) if f.endswith('.json')]
+        files.sort(reverse=True)
+        
+        result = []
+        for filename in files:
+            filepath = os.path.join(DATA_DIR, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    result.append({
+                        'filename': filename,
+                        'title': data.get('title', ''),
+                        'timestamp': data.get('timestamp', '')
+                    })
+            except Exception as e:
+                print(f"Error reading file {filename}: {e}")
+                continue
+                
+        return jsonify(result)
 
-@app.route('/get_data', methods=['GET'])
-def get_data():
-    filename = request.args.get('filename')
-    if filename is None:
-        return jsonify({'error': 'filename parameter is required'}), 400
-    data_dir = 'data'
-    file_path = os.path.join(data_dir, filename)
-    if not os.path.exists(file_path):
-        return jsonify({'error': 'file not found'}), 404
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    return jsonify({'content': content})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
+@app.route('/get_data/<filename>', methods=['GET'])
+def get_data(filename):
+    """获取特定数据接口"""
+    try:
+        filepath = os.path.join(DATA_DIR, filename)
+        if not os.path.exists(filepath):
+            return jsonify({'error': 'File not found'}), 404
 
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify(data)
 
-# 写一个api接口用来保存数据为本地json文件， 比如不保存到 /data/xxxx.json
-@app.route('/save_tmp', methods=['POST'])
-def save_tmp():
-    data = request.get_json()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-    # filename 取 data 里的title字段
-    # 当前时间戳模 作为 默认的文件名
-    timestamp = int(time.time())
-    filename = data.get('title', f'{timestamp}')
-    save_dir = 'templates'
-
-    # Create the save directory if it doesn't exist
-    import os
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    # Save the data to a file
-    file_path = os.path.join(save_dir, f'{filename}.json')
-    with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False)
-
-    return jsonify({'message': f'Data saved to {file_path}'})
-
-@app.route('/get_tmp_list', methods=['GET'])
-def get_tmp_list():
-    data_dir = 'templates'
-    files = [f for f in os.listdir(data_dir) if f.endswith('.json')]
-    return jsonify({'files': files})
-
-@app.route('/get_tmp', methods=['GET'])
-def get_tmp():
-    filename = request.args.get('filename')
-    if filename is None:
-        return jsonify({'error': 'filename parameter is required'}), 400
-    data_dir = 'templates'
-    file_path = os.path.join(data_dir, filename)
-    if not os.path.exists(file_path):
-        return jsonify({'error': 'file not found'}), 404
-    with open(file_path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    return jsonify({'content': content})
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
+    # 确保必要的目录存在
+    ensure_data_dir()
+    
+    # 加载配置
+    if not os.path.exists(CONFIG_FILE):
+        default_config = {
+            "url": "https://xxxx",
+            "title_xpath": "//div[@class='headline_info']/h3/span[@class='mw-headline']",
+            "profile_xpath": "//div[@class='mf-section-0']/p",
+            "step_xpath": "//div[@id='mf-section-1']/div",
+            "step_title_xpath": ".//div[@class='headline_info']/h3/span[@class='mw-headline']",
+            "step_item_xpath": ".//li",
+            "step_item_img_xpath": ".//div[@class='content-spacer']/img",
+            "step_item_content_xpath": ".//div[@class='step']"
+        }
+        save_config(default_config)
+    
     app.run(debug=True, port=5508)
 
