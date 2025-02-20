@@ -1,0 +1,53 @@
+{
+  "name": "wikihow-service",
+  "version": "1.0.0",
+  "description": "WikiHow article scraping and template service",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "cross-env NODE_ENV=production node src/server.js",
+    "dev": "cross-env NODE_ENV=development nodemon src/server.js",
+    "lint": "eslint src/",
+    "test": "jest",
+    "migrate": "node scripts/migrate-files.js",
+    "migrate:dry-run": "node scripts/migrate-files.js --dry-run",
+    "migrate:validate": "node scripts/migrate-files.js --validate"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulloo/article_spider.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/paulloo/article_spider/issues"
+  },
+  "homepage": "https://github.com/paulloo/article_spider#readme",
+  "dependencies": {
+    "axios": "^0.24.0",
+    "cheerio": "^1.0.0-rc.10",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "handlebars": "^4.7.7",
+    "joi": "^17.5.0",
+    "multer": "^1.4.4",
+    "node-cache": "^5.1.2",
+    "swagger-jsdoc": "^6.1.0",
+    "swagger-ui-express": "^4.3.0",
+    "uuid": "^11.0.5",
+    "winston": "^3.3.3"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "eslint": "^8.4.1",
+    "jest": "^27.4.5",
+    "nodemon": "^2.0.15"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@scarf/scarf",
+      "sharp"
+    ]
+  }
+}

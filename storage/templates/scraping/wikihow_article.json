@@ -1,0 +1,57 @@
+{
+    "name": "WikiHow Article",
+    "description": "Template for scraping WikiHow articles",
+    "preview_image": "https://cdn.ddp.life/cqFPb0Tk72cpDx84HlvvNSmE.png",
+    "created_at": "2024-02-18T17:43:41",
+    "updated_at": "2024-02-18T17:43:41",
+    "template_content": {
+      "type": "article",
+      "version": "1.0",
+      "style": "wechat",
+      "sections": [
+        {
+          "type": "header",
+          "content": "{{guide}}"
+        },
+        {
+          "type": "title",
+          "content": "{{title}}"
+        },
+        {
+          "type": "profile",
+          "content": "{{profile}}"
+        },
+        {
+          "type": "steps",
+          "template": "{{#each steps}}...{{/each}}"
+        },
+        {
+          "type": "footer",
+          "content": {
+            "qrcode": "https://cdn.ddp.life/MWHTkR70zmA0Re_0DOuRaSEm.png",
+            "history": "{{#each history}}...{{/each}}"
+          }
+        }
+      ]
+    },
+    "html_template": {
+      "version": "1.0",
+      "content": "<section style=\"width: 100%; display: flex; flex-direction: column; background: #fff;\">\n  <section style=\"line-height: 2em; padding: 20px;\">\n    <section style=\"display: flex; flex-direction: column;\">\n      <section style=\"display: flex; justify-content: center; align-items: center;\">\n        <img src=\"https://cdn.ddp.life/9gTc9cOQU74flNC8wiAavP--.png\" width=\"76\" alt=\"Image\" />\n      </section>\n      <section style=\"text-align: left; border-top: 1px solid #855a27; border-bottom: 1px solid #855a27; padding: 4px 9px;\">\n        <p style=\"font-size: 16px; color: #855a27;\">{{guide}}</p>\n      </section>\n    </section>\n\n    <section style=\"text-align: center; padding: 15px 13px; background: #d0ddff; border-radius: 13px;\">\n      <span style=\"font-size: 16px; color: rgb(84, 84, 84);\">{{profile}}</span>\n    </section>\n    \n    {{#each steps}}\n      <section style=\"width: 95%; margin: 0 auto; padding: 20px 0;\">\n        <section style=\"padding: 0 4px; background: #eaeaea; height: 9px;\">\n          <p style=\"font-size: 16px; font-weight: 500; text-align: center; color: #333333;\">{{title}}</p>\n        </section>\n        \n        {{#each step_items}}\n          <section style=\"width: 95%; margin: 0 auto; padding: 28px 0 0 24px; background: url(https://cdn.ddp.life/5JOfCL67cZZS6PteqxnQv1V6.png) left top / 110px no-repeat;\">\n            {{#if img}}\n              <img src=\"{{img}}\" style=\"width: 100%; margin-bottom: 28px;\" alt=\"Step Image\" />\n            {{/if}}\n            <section style=\"padding-bottom: 20px; background: #333; color: #fff; margin: 14px 0;\">\n              <p style=\"font-size: 16px; font-weight: 700; color: #fff;\">{{addOne @index}} {{boldFirstSentence content}}</p>\n              <ul style=\"list-style-type: disc; font-size: 16px; color: #fff;\">\n                {{#each children}}\n                  <li>{{this}}</li>\n                {{/each}}\n              </ul>\n            </section>\n          </section>\n        {{/each}}\n      </section>\n    {{/each}}\n\n    <section style=\"width: 100%; text-align: center; padding: 23px 0;\">\n      <p style=\"font-size: 14px; color: #444444;\">END</p>\n    </section>\n\n    <section style=\"width: 100%; text-align: center;\">\n      <p style=\"font-size: 14px; color: #333333; line-height: 20px;\">「 往期文章 」</p>\n      {{#each history}}\n        <p style=\"text-align: center; font-size: 14px; padding: 12px 0; border-bottom: 1px dashed #333333;\">\n          <a href=\"{{url}}\" style=\"color: #555;\">{{title}}</a>\n        </p>\n      {{/each}}\n    </section>\n\n    <section style=\"width: 100%; text-align: center; padding: 10px;\">\n      <p style=\"font-size: 14px; color: #333333;\">来源：网络（侵删）</p>\n      <p style=\"font-size: 14px; color: #333333;\">图片来源：网络（侵删）</p>\n    </section>\n  </section>\n</section>",
+      "helpers": {
+        "addOne": "function(index) { return index + 1; }",
+        "boldFirstSentence": "function(text) { return text.replace(/(^[^。！？.!?]+[。！？.!?])/, '<strong>$1</strong>'); }"
+      }
+    },
+    "xpath_rules": {
+      "title": "h1.title_md a",
+      "profile": ".mf-section-0 p",
+      "steps": "div.section.steps",
+      "step_title_xpath": "div.headline_info h3 span.mw-headline",
+      "step_item_xpath": "ol.steps_list_2 > li",
+      "step_item_img_xpath": "div.mwimg img.whcdn",
+      "step_item_content_xpath": "div.step"
+    },
+    "migrated_at": "2025-02-19T08:46:36.032Z",
+    "original_filename": "example_template.json",
+    "id": "493da9bf-a6d3-405c-b026-bec203fb2b9c"
+  }

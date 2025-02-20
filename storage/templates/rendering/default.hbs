@@ -1,0 +1,91 @@
+<section class="rich_media_area_primary">
+  <!-- 头部区域 -->
+  <section class="rich_media_title">
+    <section style="display:flex;align-items:center;margin-bottom:15px;">
+      <img src="https://cdn.ddp.life/9gTc9cOQU74flNC8wiAavP--.png" style="width:76px;height:auto;" />
+      <p style="margin-left:10px;font-size:16px;color:#855a27;border-bottom:1px solid #855a27;">
+        {{guide}}
+      </p>
+    </section>
+  </section>
+
+  <!-- 标题 -->
+  <h1 style="font-size:22px;font-weight:bold;color:#333;text-align:center;margin:20px 0;">
+    {{title}}
+  </h1>
+
+  <!-- 简介 -->
+  <section class="rich_media_content">
+    <section style="background:#d0ddff;padding:15px;border-radius:13px;margin:20px 0;">
+      <p style="font-size:16px;color:#545454;line-height:1.6;">
+        {{profile}}
+      </p>
+    </section>
+
+    <!-- 步骤列表 -->
+    {{#each steps}}
+      <section style="margin:30px 0;">
+        <!-- 步骤标题 -->
+        <h2 style="font-size:20px;color:#333;text-align:center;background:#eaeaea;padding:10px;margin:20px 0;">
+          {{title}}
+        </h2>
+
+        <!-- 步骤项目 -->
+        {{#each step_items}}
+          <section style="margin:25px 0;padding:0 15px;">
+            {{#if img}}
+              <img src="{{img}}" style="width:100%;margin-bottom:20px;border-radius:8px;" />
+            {{/if}}
+            
+            <!-- 步骤内容 -->
+            <section style="background:#333;color:#fff;padding:20px;border-radius:8px;">
+              <p style="font-size:18px;margin-bottom:15px;">
+                <span style="font-size:24px;font-weight:bold;margin-right:10px;">{{addOne @index}}</span>
+                {{boldFirstSentence content}}
+              </p>
+
+              {{#if children.length}}
+                <ul style="list-style:disc inside;margin-top:15px;">
+                  {{#each children}}
+                    <li style="font-size:16px;line-height:1.6;margin:8px 0;">{{this}}</li>
+                  {{/each}}
+                </ul>
+              {{/if}}
+            </section>
+          </section>
+        {{/each}}
+      </section>
+    {{/each}}
+
+    <!-- 底部区域 -->
+    <section style="text-align:center;margin:40px 0;">
+      <p style="font-size:14px;color:#444;">END</p>
+      
+      <!-- 历史文章 -->
+      <section style="margin:30px 0;">
+        <h3 style="font-size:16px;color:#333;margin-bottom:20px;">「 往期文章 」</h3>
+        {{#each history}}
+          <p style="font-size:14px;padding:12px 0;border-bottom:1px dashed #333;">
+            <a href="{{url}}" style="color:#555;text-decoration:none;">{{title}}</a>
+          </p>
+        {{/each}}
+      </section>
+
+      <!-- 二维码区域 -->
+      <section style="display:flex;align-items:center;justify-content:center;margin:30px 0;background:#f5f5f5;padding:20px;border-radius:8px;">
+        <div style="text-align:left;margin-right:20px;">
+          <p style="font-size:16px;color:#333;margin-bottom:10px;">扫描二维码</p>
+          <p style="font-size:16px;color:#333;margin-bottom:10px;">获取更多精彩</p>
+          <p style="background:#333;color:#fff;padding:5px 15px;display:inline-block;">Wiki狗</p>
+        </div>
+        <img src="https://cdn.ddp.life/MWHTkR70zmA0Re_0DOuRaSEm.png" style="width:120px;height:120px;" />
+      </section>
+
+      <!-- 版权信息 -->
+      <section style="font-size:14px;color:#666;margin-top:30px;">
+        <p>来源：网络（侵删）</p>
+        <p>图片来源：网络（侵删）</p>
+      </section>
+    </section>
+  </section>
+</section>
